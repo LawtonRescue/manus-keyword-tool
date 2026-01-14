@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MANUS Keyword Research Tool + SimilarWeb</title>
+    <title>MANUS Keyword Research Tool</title>
     <style>
         * {
             margin: 0;
@@ -19,7 +19,7 @@
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1200px;
             margin: 0 auto;
         }
 
@@ -39,15 +39,6 @@
             opacity: 0.9;
         }
 
-        .badge {
-            display: inline-block;
-            background: rgba(255, 255, 255, 0.2);
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.9em;
-            margin-top: 10px;
-        }
-
         .card {
             background: white;
             border-radius: 12px;
@@ -57,13 +48,13 @@
         }
 
         .search-box {
-            display: grid;
-            grid-template-columns: 1fr 1fr auto;
+            display: flex;
             gap: 10px;
             margin-bottom: 20px;
         }
 
         .search-input {
+            flex: 1;
             padding: 15px;
             font-size: 16px;
             border: 2px solid #e0e0e0;
@@ -179,10 +170,6 @@
             border-radius: 8px;
         }
 
-        .metric-card.similarweb {
-            background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
-        }
-
         .metric-label {
             font-size: 0.9em;
             color: #666;
@@ -265,45 +252,18 @@
         .difficulty-high {
             background: linear-gradient(90deg, #f44336, #e91e63);
         }
-
-        .traffic-sources {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-        }
-
-        .traffic-source {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            text-align: center;
-        }
-
-        .traffic-source-label {
-            font-size: 0.85em;
-            color: #666;
-            margin-bottom: 5px;
-        }
-
-        .traffic-source-value {
-            font-size: 1.2em;
-            font-weight: 700;
-            color: #333;
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>🔍 MANUS Keyword Research Tool</h1>
-            <p>Comprehensive keyword analysis with SimilarWeb traffic intelligence</p>
-            <span class="badge">✨ Now with SimilarWeb Integration</span>
+            <p>Comprehensive keyword analysis with related keywords, questions, and difficulty metrics</p>
         </div>
 
         <div class="card">
             <div class="search-box">
-                <input type="text" id="keywordInput" class="search-input" placeholder="Enter a keyword..." />
-                <input type="text" id="domainInput" class="search-input" placeholder="Domain (optional, e.g., amazon.com)" />
+                <input type="text" id="keywordInput" class="search-input" placeholder="Enter a keyword to research..." />
                 <button id="searchBtn" class="btn btn-primary">Research</button>
             </div>
 
@@ -318,7 +278,7 @@
 
             <div class="loading" id="loading">
                 <div class="spinner"></div>
-                <p>Researching keyword and fetching traffic data...</p>
+                <p>Researching keyword...</p>
             </div>
 
             <div class="results" id="results">
@@ -344,33 +304,6 @@
                     </div>
                 </div>
 
-                <div id="similarwebSection" style="display: none;">
-                    <h3>📊 SimilarWeb Traffic Intelligence</h3>
-                    <div class="metrics">
-                        <div class="metric-card similarweb">
-                            <div class="metric-label">Global Rank</div>
-                            <div class="metric-value" id="globalRank">-</div>
-                        </div>
-                        <div class="metric-card similarweb">
-                            <div class="metric-label">Total Visits</div>
-                            <div class="metric-value" id="totalVisits">-</div>
-                        </div>
-                        <div class="metric-card similarweb">
-                            <div class="metric-label">Unique Visitors</div>
-                            <div class="metric-value" id="uniqueVisitors">-</div>
-                        </div>
-                        <div class="metric-card similarweb">
-                            <div class="metric-label">Bounce Rate</div>
-                            <div class="metric-value" id="bounceRate">-</div>
-                        </div>
-                    </div>
-
-                    <div id="trafficSourcesSection" style="display: none;">
-                        <h3>🚦 Traffic Sources</h3>
-                        <div class="traffic-sources" id="trafficSources"></div>
-                    </div>
-                </div>
-
                 <div class="section" id="relatedSection" style="display: none;">
                     <h3>Related Keywords</h3>
                     <div class="keyword-list" id="relatedKeywords"></div>
@@ -388,7 +321,6 @@
         const API_BASE = window.location.origin;
 
         const keywordInput = document.getElementById('keywordInput');
-        const domainInput = document.getElementById('domainInput');
         const searchBtn = document.getElementById('searchBtn');
         const includeRelated = document.getElementById('includeRelated');
         const loading = document.getElementById('loading');
@@ -397,12 +329,6 @@
 
         // Handle Enter key
         keywordInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                searchBtn.click();
-            }
-        });
-
-        domainInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 searchBtn.click();
             }
@@ -420,8 +346,6 @@
         });
 
         async function researchKeyword(keyword) {
-            const domain = domainInput.value.trim();
-
             // Show loading state
             loading.classList.add('active');
             results.classList.remove('active');
@@ -429,21 +353,15 @@
             searchBtn.disabled = true;
 
             try {
-                const requestBody = {
-                    keyword: keyword,
-                    include_related: includeRelated.checked
-                };
-
-                if (domain) {
-                    requestBody.domain = domain;
-                }
-
                 const response = await fetch(`${API_BASE}/api/keyword/research`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(requestBody)
+                    body: JSON.stringify({
+                        keyword: keyword,
+                        include_related: includeRelated.checked
+                    })
                 });
 
                 if (!response.ok) {
@@ -459,19 +377,6 @@
                 loading.classList.remove('active');
                 searchBtn.disabled = false;
             }
-        }
-
-        function formatNumber(num) {
-            if (!num) return 'N/A';
-            
-            if (num >= 1000000000) {
-                return (num / 1000000000).toFixed(1) + 'B';
-            } else if (num >= 1000000) {
-                return (num / 1000000).toFixed(1) + 'M';
-            } else if (num >= 1000) {
-                return (num / 1000).toFixed(1) + 'K';
-            }
-            return num.toString();
         }
 
         function displayResults(data) {
@@ -493,41 +398,6 @@
                 difficultyBar.className = 'difficulty-fill difficulty-medium';
             } else {
                 difficultyBar.className = 'difficulty-fill difficulty-high';
-            }
-
-            // Display SimilarWeb data if available
-            const similarwebSection = document.getElementById('similarwebSection');
-            if (data.similarweb_data && !data.similarweb_data.error) {
-                const sw = data.similarweb_data;
-                
-                document.getElementById('globalRank').textContent = sw.global_rank ? `#${formatNumber(sw.global_rank)}` : 'N/A';
-                document.getElementById('totalVisits').textContent = formatNumber(sw.total_visits);
-                document.getElementById('uniqueVisitors').textContent = formatNumber(sw.unique_visitors);
-                document.getElementById('bounceRate').textContent = sw.bounce_rate ? `${(sw.bounce_rate * 100).toFixed(1)}%` : 'N/A';
-                
-                // Display traffic sources
-                if (sw.traffic_sources && Object.keys(sw.traffic_sources).length > 0) {
-                    const trafficSourcesDiv = document.getElementById('trafficSources');
-                    trafficSourcesDiv.innerHTML = '';
-                    
-                    for (const [source, value] of Object.entries(sw.traffic_sources)) {
-                        if (value > 0) {
-                            const sourceDiv = document.createElement('div');
-                            sourceDiv.className = 'traffic-source';
-                            sourceDiv.innerHTML = `
-                                <div class="traffic-source-label">${source.replace(/_/g, ' ')}</div>
-                                <div class="traffic-source-value">${(value * 100).toFixed(1)}%</div>
-                            `;
-                            trafficSourcesDiv.appendChild(sourceDiv);
-                        }
-                    }
-                    
-                    document.getElementById('trafficSourcesSection').style.display = 'block';
-                }
-                
-                similarwebSection.style.display = 'block';
-            } else {
-                similarwebSection.style.display = 'none';
             }
 
             // Display related keywords

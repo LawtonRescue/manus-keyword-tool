@@ -12,6 +12,13 @@ from dataclasses import dataclass, asdict
 from bs4 import BeautifulSoup
 import re
 
+try:
+    from similarweb_integration import SimilarWebIntegration, SimilarWebData
+    SIMILARWEB_AVAILABLE = True
+except ImportError:
+    SIMILARWEB_AVAILABLE = False
+    SimilarWebData = None
+
 
 @dataclass
 class KeywordData:
@@ -24,6 +31,7 @@ class KeywordData:
     related_keywords: List[str] = None
     questions: List[str] = None
     difficulty: Optional[int] = None
+    similarweb_data: Optional[Dict] = None
     
     def __post_init__(self):
         if self.related_keywords is None:
@@ -35,19 +43,23 @@ class KeywordData:
 class KeywordResearchTool:
     """Main keyword research tool class"""
     
-    def __init__(self):
+    def __init__(self, enable_similarweb: bool = False):
         self.session = requests.Session()
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         })
+        self.enable_similarweb = enable_similarweb and SIMILARWEB_AVAILABLE
+        if self.enable_similarweb:
+            self.similarweb = SimilarWebIntegration()
     
-    def research_keyword(self, keyword: str, include_related: bool = True) -> KeywordData:
+    def research_keyword(self, keyword: str, include_related: bool = True, domain: Optional[str] = None) -> KeywordData:
         """
         Perform comprehensive keyword research
         
         Args:
             keyword: The keyword to research
             include_related: Whether to include related keywords and questions
+            domain: Optional domain to get SimilarWeb data for
             
         Returns:
             KeywordData object with all available information
@@ -67,6 +79,14 @@ class KeywordResearchTool:
         
         # Get trend data
         data.trend = self.get_trend_indicator(keyword)
+        
+        # Get SimilarWeb data if enabled and domain provided
+        if self.enable_similarweb and domain:
+            try:
+                sw_data = self.similarweb.get_domain_data(domain)
+                data.similarweb_data = self.similarweb.export_to_dict(sw_data)
+            except Exception as e:
+                print(f"Error getting SimilarWeb data: {e}")
         
         return data
     

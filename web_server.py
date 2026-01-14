@@ -6,14 +6,16 @@ Serves both the API and the web UI
 
 from flask import Flask, request, jsonify, send_from_directory
 from keyword_tool import KeywordResearchTool
+from similarweb_integration import SimilarWebIntegration
 import logging
 import os
 
 app = Flask(__name__, static_folder='.')
 logging.basicConfig(level=logging.INFO)
 
-# Initialize the keyword research tool
-tool = KeywordResearchTool()
+# Initialize the keyword research tool with SimilarWeb enabled
+tool = KeywordResearchTool(enable_similarweb=True)
+similarweb = SimilarWebIntegration()
 
 
 @app.route('/')
@@ -42,8 +44,9 @@ def research_keyword():
         
         keyword = data['keyword']
         include_related = data.get('include_related', True)
+        domain = data.get('domain', None)
         
-        result = tool.research_keyword(keyword, include_related=include_related)
+        result = tool.research_keyword(keyword, include_related=include_related, domain=domain)
         
         return jsonify(tool.export_to_dict(result))
     
@@ -143,6 +146,27 @@ def get_difficulty():
     
     except Exception as e:
         logging.error(f"Error estimating difficulty: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/similarweb/domain', methods=['GET'])
+def get_similarweb_data():
+    """Get SimilarWeb data for a domain"""
+    try:
+        domain = request.args.get('domain')
+        
+        if not domain:
+            return jsonify({'error': 'Missing domain parameter'}), 400
+        
+        if not similarweb.available:
+            return jsonify({'error': 'SimilarWeb API not available'}), 503
+        
+        data = similarweb.get_domain_data(domain)
+        
+        return jsonify(similarweb.export_to_dict(data))
+    
+    except Exception as e:
+        logging.error(f"Error getting SimilarWeb data: {e}")
         return jsonify({'error': str(e)}), 500
 
 
