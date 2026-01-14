@@ -7,15 +7,21 @@ Serves both the API and the web UI
 from flask import Flask, request, jsonify, send_from_directory
 from keyword_tool import KeywordResearchTool
 from similarweb_integration import SimilarWebIntegration
+from ai_first_engine import AIFirstEngine
 import logging
 import os
 
 app = Flask(__name__, static_folder='.')
 logging.basicConfig(level=logging.INFO)
 
-# Initialize the keyword research tool with SimilarWeb enabled
-tool = KeywordResearchTool(enable_similarweb=True)
+# Initialize the keyword research tool with SimilarWeb and AI-First enabled
+tool = KeywordResearchTool(
+    enable_similarweb=True,
+    enable_ai_insights=True,
+    ai_model="gpt-4.1-mini"
+)
 similarweb = SimilarWebIntegration()
+ai_engine = AIFirstEngine(model="gpt-4.1-mini")
 
 
 @app.route('/')

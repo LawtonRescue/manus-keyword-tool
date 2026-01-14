@@ -19,6 +19,13 @@ except ImportError:
     SIMILARWEB_AVAILABLE = False
     SimilarWebData = None
 
+try:
+    from ai_first_engine import AIFirstEngine, AIInsights
+    AI_FIRST_AVAILABLE = True
+except ImportError:
+    AI_FIRST_AVAILABLE = False
+    AIInsights = None
+
 
 @dataclass
 class KeywordData:
@@ -32,6 +39,7 @@ class KeywordData:
     questions: List[str] = None
     difficulty: Optional[int] = None
     similarweb_data: Optional[Dict] = None
+    ai_insights: Optional[Dict] = None
     
     def __post_init__(self):
         if self.related_keywords is None:
@@ -43,7 +51,7 @@ class KeywordData:
 class KeywordResearchTool:
     """Main keyword research tool class"""
     
-    def __init__(self, enable_similarweb: bool = False):
+    def __init__(self, enable_similarweb: bool = False, enable_ai_insights: bool = False, ai_model: str = "gpt-4.1-mini"):
         self.session = requests.Session()
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -51,6 +59,10 @@ class KeywordResearchTool:
         self.enable_similarweb = enable_similarweb and SIMILARWEB_AVAILABLE
         if self.enable_similarweb:
             self.similarweb = SimilarWebIntegration()
+        
+        self.enable_ai_insights = enable_ai_insights and AI_FIRST_AVAILABLE
+        if self.enable_ai_insights:
+            self.ai_engine = AIFirstEngine(model=ai_model)
     
     def research_keyword(self, keyword: str, include_related: bool = True, domain: Optional[str] = None) -> KeywordData:
         """
@@ -87,6 +99,20 @@ class KeywordResearchTool:
                 data.similarweb_data = self.similarweb.export_to_dict(sw_data)
             except Exception as e:
                 print(f"Error getting SimilarWeb data: {e}")
+        
+        # Generate AI insights if enabled
+        if self.enable_ai_insights:
+            try:
+                ai_insights = self.ai_engine.generate_insights(
+                    keyword=keyword,
+                    difficulty=data.difficulty,
+                    competition=data.competition,
+                    related_keywords=data.related_keywords,
+                    similarweb_data=data.similarweb_data
+                )
+                data.ai_insights = self.ai_engine.export_to_dict(ai_insights)
+            except Exception as e:
+                print(f"Error generating AI insights: {e}")
         
         return data
     
