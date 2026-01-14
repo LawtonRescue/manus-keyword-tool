@@ -26,6 +26,13 @@ except ImportError:
     AI_FIRST_AVAILABLE = False
     AIInsights = None
 
+try:
+    from justin_burns_engine import JustinBurnsEngine
+    from industry_analyzer import IndustryAnalyzer
+    JUSTIN_BURNS_AVAILABLE = True
+except ImportError:
+    JUSTIN_BURNS_AVAILABLE = False
+
 
 @dataclass
 class KeywordData:
@@ -40,6 +47,8 @@ class KeywordData:
     difficulty: Optional[int] = None
     similarweb_data: Optional[Dict] = None
     ai_insights: Optional[Dict] = None
+    justin_burns_analysis: Optional[Dict] = None
+    industry_insights: Optional[Dict] = None
     
     def __post_init__(self):
         if self.related_keywords is None:
@@ -63,6 +72,11 @@ class KeywordResearchTool:
         self.enable_ai_insights = enable_ai_insights and AI_FIRST_AVAILABLE
         if self.enable_ai_insights:
             self.ai_engine = AIFirstEngine(model=ai_model)
+        
+        self.enable_justin_burns = JUSTIN_BURNS_AVAILABLE
+        if self.enable_justin_burns:
+            self.justin_burns_engine = JustinBurnsEngine()
+            self.industry_analyzer = IndustryAnalyzer()
     
     def research_keyword(self, keyword: str, include_related: bool = True, domain: Optional[str] = None) -> KeywordData:
         """
@@ -113,6 +127,31 @@ class KeywordResearchTool:
                 data.ai_insights = self.ai_engine.export_to_dict(ai_insights)
             except Exception as e:
                 print(f"Error generating AI insights: {e}")
+        
+        # Generate Justin Burns analysis if available
+        if self.enable_justin_burns:
+            try:
+                print("Generating Justin Burns analysis...")
+                justin_burns_analysis = self.justin_burns_engine.analyze(
+                    keyword=keyword,
+                    difficulty=data.difficulty,
+                    competition=data.competition,
+                    related_keywords=data.related_keywords,
+                    ai_insights=data.ai_insights if self.enable_ai_insights else None,
+                    similarweb_data=data.similarweb_data if self.enable_similarweb else None
+                )
+                data.justin_burns_analysis = self.justin_burns_engine.export_to_dict(justin_burns_analysis)
+                
+                # Generate industry analysis
+                industry_insights = self.industry_analyzer.analyze(
+                    keyword=keyword,
+                    ai_insights=data.ai_insights if self.enable_ai_insights else None,
+                    difficulty=data.difficulty,
+                    competition=data.competition
+                )
+                data.industry_insights = self.industry_analyzer.export_to_dict(industry_insights)
+            except Exception as e:
+                print(f"Error generating Justin Burns analysis: {e}")
         
         return data
     

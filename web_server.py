@@ -14,7 +14,7 @@ import os
 app = Flask(__name__, static_folder='.')
 logging.basicConfig(level=logging.INFO)
 
-# Initialize the keyword research tool with SimilarWeb and AI-First enabled
+# Initialize the keyword research tool with SimilarWeb, AI-First, and Justin Burns enabled
 tool = KeywordResearchTool(
     enable_similarweb=True,
     enable_ai_insights=True,
