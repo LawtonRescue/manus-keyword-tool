@@ -1,0 +1,278 @@
+#!/usr/bin/env python3
+"""
+MANUS Keyword Research Tool
+A comprehensive keyword research tool with multiple data sources
+"""
+
+import requests
+import json
+import time
+from typing import List, Dict, Optional
+from dataclasses import dataclass, asdict
+from bs4 import BeautifulSoup
+import re
+
+
+@dataclass
+class KeywordData:
+    """Data structure for keyword information"""
+    keyword: str
+    search_volume: Optional[int] = None
+    competition: Optional[str] = None
+    cpc: Optional[float] = None
+    trend: Optional[str] = None
+    related_keywords: List[str] = None
+    questions: List[str] = None
+    difficulty: Optional[int] = None
+    
+    def __post_init__(self):
+        if self.related_keywords is None:
+            self.related_keywords = []
+        if self.questions is None:
+            self.questions = []
+
+
+class KeywordResearchTool:
+    """Main keyword research tool class"""
+    
+    def __init__(self):
+        self.session = requests.Session()
+        self.session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        })
+    
+    def research_keyword(self, keyword: str, include_related: bool = True) -> KeywordData:
+        """
+        Perform comprehensive keyword research
+        
+        Args:
+            keyword: The keyword to research
+            include_related: Whether to include related keywords and questions
+            
+        Returns:
+            KeywordData object with all available information
+        """
+        print(f"Researching keyword: {keyword}")
+        
+        data = KeywordData(keyword=keyword)
+        
+        # Get Google suggestions
+        if include_related:
+            data.related_keywords = self.get_google_suggestions(keyword)
+            data.questions = self.get_people_also_ask(keyword)
+        
+        # Estimate difficulty based on keyword characteristics
+        data.difficulty = self.estimate_difficulty(keyword)
+        data.competition = self.estimate_competition(keyword)
+        
+        # Get trend data
+        data.trend = self.get_trend_indicator(keyword)
+        
+        return data
+    
+    def get_google_suggestions(self, keyword: str, max_results: int = 10) -> List[str]:
+        """
+        Get Google autocomplete suggestions for a keyword
+        
+        Args:
+            keyword: The base keyword
+            max_results: Maximum number of suggestions to return
+            
+        Returns:
+            List of suggested keywords
+        """
+        try:
+            url = "http://suggestqueries.google.com/complete/search"
+            params = {
+                'client': 'firefox',
+                'q': keyword
+            }
+            
+            response = self.session.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            
+            suggestions = response.json()[1]
+            return suggestions[:max_results]
+        except Exception as e:
+            print(f"Error getting Google suggestions: {e}")
+            return []
+    
+    def get_people_also_ask(self, keyword: str) -> List[str]:
+        """
+        Get "People Also Ask" questions for a keyword
+        
+        Args:
+            keyword: The keyword to search for
+            
+        Returns:
+            List of related questions
+        """
+        questions = []
+        
+        # Generate common question patterns
+        question_templates = [
+            f"what is {keyword}",
+            f"how to {keyword}",
+            f"why {keyword}",
+            f"when to {keyword}",
+            f"where to {keyword}",
+            f"best {keyword}",
+            f"{keyword} vs",
+            f"{keyword} benefits",
+            f"{keyword} cost",
+            f"{keyword} tips"
+        ]
+        
+        # Get suggestions for question patterns
+        for template in question_templates[:5]:
+            suggestions = self.get_google_suggestions(template, max_results=2)
+            questions.extend(suggestions)
+        
+        return list(set(questions))[:10]
+    
+    def estimate_difficulty(self, keyword: str) -> int:
+        """
+        Estimate keyword difficulty (0-100)
+        Based on keyword characteristics
+        
+        Args:
+            keyword: The keyword to analyze
+            
+        Returns:
+            Difficulty score (0-100)
+        """
+        difficulty = 50  # Base difficulty
+        
+        # Adjust based on keyword length
+        word_count = len(keyword.split())
+        if word_count == 1:
+            difficulty += 20  # Single words are harder
+        elif word_count >= 4:
+            difficulty -= 20  # Long-tail keywords are easier
+        
+        # Adjust based on keyword characteristics
+        if any(word in keyword.lower() for word in ['best', 'top', 'review']):
+            difficulty += 10  # Commercial intent keywords are harder
+        
+        if any(word in keyword.lower() for word in ['how', 'what', 'why', 'guide']):
+            difficulty -= 5  # Informational keywords are slightly easier
+        
+        # Ensure difficulty is within bounds
+        return max(0, min(100, difficulty))
+    
+    def estimate_competition(self, keyword: str) -> str:
+        """
+        Estimate competition level
+        
+        Args:
+            keyword: The keyword to analyze
+            
+        Returns:
+            Competition level (Low, Medium, High)
+        """
+        difficulty = self.estimate_difficulty(keyword)
+        
+        if difficulty < 40:
+            return "Low"
+        elif difficulty < 70:
+            return "Medium"
+        else:
+            return "High"
+    
+    def get_trend_indicator(self, keyword: str) -> str:
+        """
+        Get trend indicator for keyword
+        
+        Args:
+            keyword: The keyword to analyze
+            
+        Returns:
+            Trend indicator (Rising, Stable, Declining, Unknown)
+        """
+        # This is a placeholder - in a real implementation,
+        # you would integrate with Google Trends API or similar
+        return "Stable"
+    
+    def batch_research(self, keywords: List[str], include_related: bool = False) -> List[KeywordData]:
+        """
+        Research multiple keywords
+        
+        Args:
+            keywords: List of keywords to research
+            include_related: Whether to include related keywords
+            
+        Returns:
+            List of KeywordData objects
+        """
+        results = []
+        
+        for i, keyword in enumerate(keywords):
+            print(f"Processing {i+1}/{len(keywords)}: {keyword}")
+            data = self.research_keyword(keyword, include_related=include_related)
+            results.append(data)
+            
+            # Rate limiting
+            if i < len(keywords) - 1:
+                time.sleep(0.5)
+        
+        return results
+    
+    def export_to_dict(self, data: KeywordData) -> Dict:
+        """Export keyword data to dictionary"""
+        return asdict(data)
+    
+    def export_to_json(self, data: KeywordData, filepath: str):
+        """Export keyword data to JSON file"""
+        with open(filepath, 'w') as f:
+            json.dump(self.export_to_dict(data), f, indent=2)
+    
+    def export_batch_to_json(self, results: List[KeywordData], filepath: str):
+        """Export batch results to JSON file"""
+        data = [self.export_to_dict(result) for result in results]
+        with open(filepath, 'w') as f:
+            json.dump(data, f, indent=2)
+
+
+def main():
+    """Main function for CLI usage"""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='MANUS Keyword Research Tool')
+    parser.add_argument('keyword', nargs='?', help='Keyword to research')
+    parser.add_argument('--related', action='store_true', help='Include related keywords and questions')
+    parser.add_argument('--output', '-o', help='Output JSON file path')
+    parser.add_argument('--batch', help='File containing list of keywords (one per line)')
+    
+    args = parser.parse_args()
+    
+    if not args.keyword and not args.batch:
+        parser.error('Either keyword or --batch must be provided')
+    
+    tool = KeywordResearchTool()
+    
+    if args.batch:
+        # Batch processing
+        with open(args.batch, 'r') as f:
+            keywords = [line.strip() for line in f if line.strip()]
+        
+        results = tool.batch_research(keywords, include_related=args.related)
+        
+        if args.output:
+            tool.export_batch_to_json(results, args.output)
+            print(f"\nResults exported to {args.output}")
+        else:
+            for result in results:
+                print(f"\n{json.dumps(tool.export_to_dict(result), indent=2)}")
+    else:
+        # Single keyword
+        result = tool.research_keyword(args.keyword, include_related=args.related)
+        
+        if args.output:
+            tool.export_to_json(result, args.output)
+            print(f"\nResults exported to {args.output}")
+        else:
+            print(f"\n{json.dumps(tool.export_to_dict(result), indent=2)}")
+
+
+if __name__ == '__main__':
+    main()
